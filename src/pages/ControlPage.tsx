@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { db } from '../db'
 import MapStage, { type ActiveMap } from '../components/MapStage'
+import Shortcuts from '../components/Shortcuts'
 import { controlChannel } from '../lib/channel'
 import { FogEngine } from '../lib/fog'
 import { detectGrid } from '../lib/gridDetect'
@@ -13,7 +14,7 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 
 const HINTS: Record<Tool, string> = {
-  brush: 'Arrastrá para pintar. Botón central o Espacio + arrastrar mueve tu vista; la rueda hace zoom.',
+  brush: 'Arrastrá para pintar. Botón central o Espacio + arrastrar mueve tu vista; Ctrl + clic derecho mueve la vista de la mesa; la rueda hace zoom.',
   rect: 'Arrastrá para marcar un rectángulo.',
   poly: 'Clic para sumar puntos. Doble clic o Enter cierra la forma; Esc cancela.',
   cell: 'Clic o arrastrá para revelar casillas completas de la grilla.',
@@ -39,19 +40,44 @@ function Segmented<T extends string>(props: {
 }
 
 function NumberField(props: { label: string; value: number; step?: number; min?: number; max?: number; suffix?: string; onChange: (v: number) => void }) {
+  // Mientras se escribe se conserva el texto tal cual (incluso vacío o fuera de rango);
+  // el valor se ajusta a los límites recién al salir del campo o con Enter.
+  const [draft, setDraft] = useState<string | null>(null)
+  const lo = props.min ?? -Infinity
+  const hi = props.max ?? Infinity
+  const parse = (t: string) => parseFloat(t.replace(',', '.'))
+
+  const commit = () => {
+    if (draft === null) return
+    const v = parse(draft)
+    if (Number.isFinite(v)) props.onChange(clamp(v, lo, hi))
+    setDraft(null)
+  }
+
   return (
     <label className="field">
       <span>{props.label}</span>
       <span className="field-input">
         <input
           type="number"
-          value={Number.isFinite(props.value) ? Number(props.value.toFixed(3)) : ''}
+          value={draft ?? (Number.isFinite(props.value) ? Number(props.value.toFixed(3)) : '')}
           step={props.step ?? 1}
           min={props.min}
           max={props.max}
           onChange={(e) => {
-            const v = parseFloat(e.target.value)
-            if (Number.isFinite(v)) props.onChange(v)
+            const t = e.target.value
+            setDraft(t)
+            const v = parse(t)
+            // Si el número ya es válido se aplica en vivo; si no, se espera a que termine de escribir.
+            if (Number.isFinite(v) && v >= lo && v <= hi) props.onChange(v)
+          }}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
+            else if (e.key === 'Escape') {
+              setDraft(null)
+              e.currentTarget.blur()
+            }
           }}
         />
         {props.suffix && <em>{props.suffix}</em>}
@@ -360,7 +386,6 @@ export default function ControlPage() {
 
   const editGrid = (g: Partial<Grid>) => {
     setGrid((cur) => ({ ...cur, ...g }))
-    setGridConfirmed(true)
   }
 
   const calibrateGrid = (r: { x: number; y: number; w: number; h: number }) => {
@@ -465,7 +490,7 @@ export default function ControlPage() {
 
   return (
     <div
-      className="app"
+      className={`app${settings.panelCompact ? ' compact' : ''}`}
       onDragOver={(e) => {
         e.preventDefault()
         setDragging(true)
@@ -554,6 +579,7 @@ export default function ControlPage() {
           <span>{HINTS[tool]}</span>
           {busy && <span className="chip">Procesando…</span>}
         </div>
+        <Shortcuts open={settings.shortcutsOpen} onToggle={() => settings.set({ shortcutsOpen: !settings.shortcutsOpen })} />
         {msg && (
           <div className="toast" role="status">
             {msg}
@@ -563,6 +589,21 @@ export default function ControlPage() {
       </main>
 
       <aside className="panel">
+        <div className="panel-head">
+          <span className={`dot ${playerAlive ? 'ok' : ''}`} aria-hidden="true" />
+          <span className="panel-status">{playerAlive ? 'Mesa conectada' : 'Mesa cerrada'}</span>
+          {!playerAlive && <button onClick={openTable}>Abrir mesa</button>}
+          {calib && <button className="primary" onClick={() => setCalib(false)}>Cerrar patrón</button>}
+          <div className="spacer" />
+          <button
+            onClick={() => settings.set({ panelCompact: !settings.panelCompact })}
+            aria-pressed={settings.panelCompact}
+            title={settings.panelCompact ? 'Mostrar también mesa y grilla' : 'Mostrar solo la niebla'}
+          >
+            {settings.panelCompact ? 'Ver todo' : 'Solo niebla'}
+          </button>
+        </div>
+        {!settings.panelCompact && (
         <section>
           <h2>Mesa</h2>
           <div className={`status ${playerAlive ? 'ok' : ''}`}>
@@ -654,6 +695,7 @@ export default function ControlPage() {
             </p>
           </details>
         </section>
+        )}
 
         <section>
           <h2>Niebla</h2>
@@ -700,6 +742,7 @@ export default function ControlPage() {
           <p className="note">Tu pantalla muestra lo oculto semitransparente; la mesa lo muestra opaco.</p>
         </section>
 
+        {!settings.panelCompact && (
         <section>
           <h2>Grilla del mapa</h2>
           {!gridConfirmed && active && <p className="note warn">Esta grilla todavía no fue confirmada. Compará las líneas con las del mapa.</p>}
@@ -739,8 +782,8 @@ export default function ControlPage() {
             />
           )}
           <div className="row">
-            <button disabled={!active || gridConfirmed} className={gridConfirmed ? '' : 'primary'} onClick={() => setGridConfirmed(true)}>
-              Confirmar grilla
+            <button disabled={!active} className={gridConfirmed ? '' : 'primary'} onClick={() => setGridConfirmed((c) => !c)}>
+              {gridConfirmed ? '✓ Grilla confirmada (tocá para desmarcar)' : 'Confirmar grilla'}
             </button>
           </div>
           <label className="check">
@@ -763,6 +806,7 @@ export default function ControlPage() {
             ]}
           />
         </section>
+        )}
       </aside>
 
       {dragging && <div className="drop">Soltá las imágenes para importarlas</div>}

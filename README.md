@@ -41,6 +41,8 @@ En **Escala real** cada casilla del mapa mide 25 mm en la mesa, sin importar el 
 
 ## Atajos
 
+También están siempre a la vista en el panel «Atajos» (abajo a la izquierda del mapa), que se puede minimizar.
+
 | Tecla | Acción |
 |---|---|
 | B / C / R / P | Pincel / Casilla / Rectángulo / Polígono |
@@ -51,7 +53,13 @@ En **Escala real** cada casilla del mapa mide 25 mm en la mesa, sin importar el 
 | F | Ver mapa completo (tu pantalla) |
 | Ctrl+Z / Ctrl+Shift+Z | Deshacer / Rehacer |
 | Espacio + arrastrar, botón central | Mover tu vista |
+| Ctrl + clic derecho (arrastrando) | Mover lo que se ve en la mesa, con cualquier herramienta |
 | Rueda | Zoom en tu pantalla |
+| Enter / Esc | Cerrar / cancelar polígono |
+
+## Panel derecho
+
+El botón «Solo niebla» (arriba del panel) oculta las secciones de mesa y grilla y deja únicamente las herramientas de niebla. Arriba siempre queda el estado de la mesa, con «Abrir mesa» si está cerrada.
 
 ## Notas
 

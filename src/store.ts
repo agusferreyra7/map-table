@@ -14,6 +14,8 @@ interface Settings {
   gridOpacity: number
   gridLight: boolean
   calibCells: number // cuántas casillas abarca el rectángulo al calibrar la grilla
+  shortcutsOpen: boolean // panel de atajos desplegado o minimizado
+  panelCompact: boolean // panel derecho reducido a la sección de niebla
   set: (p: Partial<Omit<Settings, 'set'>>) => void
 }
 
@@ -29,6 +31,8 @@ export const useSettings = create<Settings>()(
       gridOpacity: 0.35,
       gridLight: true,
       calibCells: 4,
+      shortcutsOpen: true,
+      panelCompact: false,
       set: (p) => set(p),
     }),
     { name: 'dnd-map-table:settings' },

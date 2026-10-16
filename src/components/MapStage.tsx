@@ -177,6 +177,13 @@ export default function MapStage(props: Props) {
     const st = s.current
     const pt = toMap(e.clientX, e.clientY)
     ;(e.target as Element).setPointerCapture(e.pointerId)
+    // Ctrl + botón derecho: en vez de mover mi vista, mueve lo que se ve en la mesa.
+    if (e.button === 2 && (e.ctrlKey || e.metaKey) && p.map) {
+      st.movingView = true
+      p.onMoveView(pt.x, pt.y)
+      st.overlayTick++
+      return
+    }
     if (e.button === 1 || e.button === 2 || st.space) {
       st.panning = { sx: pt.sx, sy: pt.sy, cx: st.cam.cx, cy: st.cam.cy }
       return
